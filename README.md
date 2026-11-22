@@ -312,19 +312,15 @@ Evidence of a successful run (API tests on PostgreSQL): [`docs/screenshots/tests
 | MCP server | Azure Container Apps (external, `/mcp`) |
 | AI Agent and chat UI | Azure Container Apps (external) |
 | Database | Azure Database for PostgreSQL Flexible Server (Burstable B1ms, PostgreSQL 16) |
-| Images | Azure Container Registry. Images are built in Azure with `az acr build`, so no local Docker is needed. |
+| Images | Azure Container Registry (Basic). Built with `az acr build`, or built locally with Docker and pushed when ACR Tasks are not allowed (Azure for Students). |
 
-Deployment (Azure Cloud Shell, Bash):
+Deployment (Azure Cloud Shell, Bash). The script is idempotent: run it again after any interruption.
 ```bash
-git clone https://github.com/<you>/<repo>.git && cd <repo>
+git clone https://github.com/borayldz3919-blip/se4458-ai-tuition-assistant.git && cd se4458-ai-tuition-assistant
 export LLM_API_KEY=<gemini key>
-LOCATION=swedencentral bash deploy/azure/deploy.sh      # prints Gateway / MCP / Chat URLs
+LOCATION=swedencentral bash deploy/azure/deploy.sh
 ```
-Then, from your own computer (Docker only), produce the cloud evidence:
-```bash
-docker compose run --rm -v ./scripts:/scripts -v ./samples:/samples agent python /scripts/smoke_test.py https://<gateway-fqdn>
-docker compose run --rm -v ./scripts:/scripts agent python /scripts/mcp_retrieval_demo.py https://<mcp-fqdn>/mcp
-```
+**Azure for Students note.** ACR Tasks (`az acr build`) are blocked on student/free-credit subscriptions (`TasksOperationsNotAllowed`). The script detects this, stops after creating the registry, database and environment, and prints the exact `docker login / tag / push` commands. Run them on your own computer (images built with Docker Desktop), then run the same deploy command again; it re-uses everything and creates the four container apps.
 
 Deployed URLs: _<fill in after deployment>_
 - Gateway: `https://...` · Swagger: `https://.../docs` · MCP: `https://.../mcp` · Chat: `https://...`
