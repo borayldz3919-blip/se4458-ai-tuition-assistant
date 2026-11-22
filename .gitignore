@@ -7,4 +7,3 @@ agent/logs/
 deploy/azure/outputs.env
 /gateway-smoke-test.txt
 .vscode/
-.vscode/

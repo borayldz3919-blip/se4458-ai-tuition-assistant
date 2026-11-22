@@ -5,7 +5,8 @@
 #   Azure Container Registry                       (images: `az acr build`, or pushed from your PC with Docker
 #                                                   when ACR Tasks are blocked, e.g. on Azure for Students)
 #   Azure Container Apps environment with 4 apps:
-#     tuition-api   internal ingress only  -> reachable only through the gateway
+#     tuition-api   ingress on, but every request without the gateway's shared secret is rejected (403)
+#                   -> in practice reachable only through the gateway
 #     api-gateway   external (Kong)        -> public REST entry point, /api/v1/...
 #     mcp-server    external               -> MCP Streamable HTTP endpoint /mcp
 #     tuition-agent external               -> chat UI
@@ -41,6 +42,7 @@ CAE="${CAE:-cae-tuition}"
 PG_ADMIN="${PG_ADMIN:-tuitionadmin}"
 PG_PASS="${PG_PASS:-Tu$(openssl rand -hex 10)9}"
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
+GATEWAY_SHARED_SECRET="${GATEWAY_SHARED_SECRET:-$(openssl rand -hex 24)}"
 LLM_MODEL="${LLM_MODEL:-gemini-3-flash-preview,gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash}"
 LLM_BASE_URL="${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}"
 # Image tag. Keep "v1" for the first deployment; use TAG=v2 (and push v2) when you redeploy changed code.
@@ -54,6 +56,7 @@ CAE=$CAE
 PG_ADMIN=$PG_ADMIN
 PG_PASS=$PG_PASS
 JWT_SECRET=$JWT_SECRET
+GATEWAY_SHARED_SECRET=$GATEWAY_SHARED_SECRET
 EOF
 echo ">> names/secrets saved to $OUT (do NOT commit this file)"
 
@@ -86,7 +89,14 @@ else
   # existing server: make sure the password we pass to the API is the current one
   az postgres flexible-server update -g "$RG" -n "$PG" --admin-password "$PG_PASS" -o none
 fi
-az postgres flexible-server db create -g "$RG" -s "$PG" -d tuition -o none 2>/dev/null || true
+# the application database (newer CLI versions use --server-name/--name; retry while the server is busy)
+if ! az postgres flexible-server db show -g "$RG" --server-name "$PG" --database-name tuition -o none 2>/dev/null; then
+  for i in 1 2 3 4 5; do
+    az postgres flexible-server db create -g "$RG" --server-name "$PG" --name tuition -o none && break
+    [ "$i" = 5 ] && { echo "Could not create database 'tuition'"; exit 1; }
+    echo "   database not created yet, retrying in 30 s ..."; sleep 30
+  done
+fi
 DATABASE_URL="postgresql+psycopg://${PG_ADMIN}:${PG_PASS}@${PG}.postgres.database.azure.com:5432/tuition?sslmode=require"
 
 step "Container Apps environment $CAE"
@@ -148,15 +158,20 @@ deploy_app() {  # name image port ingress secrets env...
   az containerapp show -g "$RG" -n "$name" --query properties.configuration.ingress.fqdn -o tsv
 }
 
-step "tuition-api (internal ingress)"
-API_FQDN=$(deploy_app tuition-api "tuition-api:$TAG" 8000 internal \
-  "db-url=$DATABASE_URL jwt-secret=$JWT_SECRET" \
-  DATABASE_URL=secretref:db-url JWT_SECRET=secretref:jwt-secret JWT_ISSUER=tuition-auth MOBILE_DAILY_LIMIT=3)
+# Note: internal-only ingress was not reachable from the other apps in this environment type (404 / DNS
+# errors from Kong), so the API uses normal ingress and enforces "gateway only" with a shared secret that
+# only Kong adds (X-Gateway-Secret). Direct calls get 403 GATEWAY_REQUIRED.
+step "tuition-api (accepts only requests that carry the gateway secret)"
+API_FQDN=$(deploy_app tuition-api "tuition-api:$TAG" 8000 external \
+  "db-url=$DATABASE_URL jwt-secret=$JWT_SECRET gateway-secret=$GATEWAY_SHARED_SECRET" \
+  DATABASE_URL=secretref:db-url JWT_SECRET=secretref:jwt-secret JWT_ISSUER=tuition-auth MOBILE_DAILY_LIMIT=3 \
+  GATEWAY_SHARED_SECRET=secretref:gateway-secret)
 
 step "api-gateway (Kong, external)"
 GW_FQDN=$(deploy_app api-gateway "api-gateway:$TAG" 8000 external \
-  "jwt-secret=$JWT_SECRET" \
-  API_UPSTREAM="https://$API_FQDN" JWT_SECRET=secretref:jwt-secret JWT_ISSUER=tuition-auth MOBILE_DAILY_LIMIT=3)
+  "jwt-secret=$JWT_SECRET gateway-secret=$GATEWAY_SHARED_SECRET" \
+  API_UPSTREAM="https://$API_FQDN" JWT_SECRET=secretref:jwt-secret JWT_ISSUER=tuition-auth MOBILE_DAILY_LIMIT=3 \
+  GATEWAY_SHARED_SECRET=secretref:gateway-secret)
 
 step "mcp-server (external)"
 MCP_FQDN=$(deploy_app mcp-server "mcp-server:$TAG" 8001 external "" PORT=8001)
@@ -180,7 +195,7 @@ cat <<EOF
   Swagger UI:              https://$GW_FQDN/docs
   MCP server:              https://$MCP_FQDN/mcp
   Chat UI:                 https://$AGENT_FQDN
-  Tuition API (internal):  https://$API_FQDN   (not reachable from the internet)
+  Tuition API:             https://$API_FQDN   (direct calls -> 403 GATEWAY_REQUIRED)
 
 Evidence (run on your computer, in the project folder):
   docker compose run --rm -v ./scripts:/scripts -v ./samples:/samples agent python /scripts/smoke_test.py https://$GW_FQDN

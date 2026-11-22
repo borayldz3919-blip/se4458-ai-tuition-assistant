@@ -1,4 +1,4 @@
-﻿MCP server: http://mcp:8001/mcp
+MCP server: http://mcp:8001/mcp
 Tools exposed: ['search_tuition_policies']
 Input schema of search_tuition_policies: {"type": "object", "properties": {"query": {"title": "Query", "type": "string"}, "top_k": {"default": 3, "title": "Top K", "type": "integer"}}, "required": ["query"], "title": "search_tuition_policiesArguments"}
 

@@ -10,7 +10,7 @@ TEMPLATE = Path(__file__).resolve().parents[1] / "kong.yml.template"
 def render(**env):
     text = TEMPLATE.read_text()
     for k, v in {"API_UPSTREAM": "http://api:8000", "JWT_SECRET": "s3cret", "JWT_ISSUER": "tuition-auth",
-                 "MOBILE_DAILY_LIMIT": "3", **env}.items():
+                 "MOBILE_DAILY_LIMIT": "3", "GATEWAY_SHARED_SECRET": "gw-secret", **env}.items():
         text = text.replace("${" + k + "}", v)
     assert not re.findall(r"\$\{[A-Z_]+\}", text)
     return yaml.safe_load(text)
@@ -52,3 +52,9 @@ def test_mobile_rate_limit_is_keyed_by_student_number_not_ip():
 def test_jwt_consumer_matches_api_issuer():
     secret = render()["consumers"][0]["jwt_secrets"][0]
     assert secret == {"key": "tuition-auth", "secret": "s3cret", "algorithm": "HS256"}
+
+
+def test_gateway_adds_shared_secret_and_strips_client_value():
+    rt = {p["name"]: p["config"] for p in render()["plugins"]}["request-transformer"]
+    assert rt["remove"]["headers"] == ["X-Gateway-Secret"]
+    assert rt["add"]["headers"] == ["X-Gateway-Secret:gw-secret"]

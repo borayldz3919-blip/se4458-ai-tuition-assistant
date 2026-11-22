@@ -23,6 +23,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       JWT_ISSUER: tuition-auth
       MOBILE_DAILY_LIMIT: "3"
+      GATEWAY_SHARED_SECRET: ${GATEWAY_SHARED_SECRET:-local-dev-gateway-secret}
     depends_on:
       db: {condition: service_healthy}
 
@@ -33,6 +34,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: tuition-auth
       MOBILE_DAILY_LIMIT: "3"
+      GATEWAY_SHARED_SECRET: ${GATEWAY_SHARED_SECRET:-local-dev-gateway-secret}
     ports: ["8000:8000"]
     depends_on: [api]
 

@@ -219,3 +219,22 @@ class TestUnpaid:
 
     def test_requires_admin(self, client, student1):
         assert client.get("/api/v1/admin/tuition/unpaid?term=2026-FALL", headers=student1).status_code == 403
+
+
+# ============================================================ Gateway enforcement (X-Gateway-Secret)
+class TestGatewayOnly:
+    def test_request_without_gateway_secret_is_rejected(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "gateway_secret", "s3cret-from-kong")
+        r = client.get("/api/v1/mobile/tuition/20230001")
+        assert r.status_code == 403 and r.json()["error"]["code"] == "GATEWAY_REQUIRED"
+        r = client.get("/api/v1/mobile/tuition/20230001", headers={"X-Gateway-Secret": "wrong"})
+        assert r.status_code == 403
+
+    def test_request_with_gateway_secret_passes(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "gateway_secret", "s3cret-from-kong")
+        r = client.get("/api/v1/mobile/tuition/20230001", headers={"X-Gateway-Secret": "s3cret-from-kong"})
+        assert r.status_code == 200
+
+    def test_health_is_open_for_platform_probes(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "gateway_secret", "s3cret-from-kong")
+        assert client.get("/health").status_code == 200

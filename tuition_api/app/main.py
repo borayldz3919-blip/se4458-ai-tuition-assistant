@@ -1,7 +1,10 @@
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import hmac
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 
 from .config import settings
@@ -47,6 +50,19 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Tuition API", version="1.0.0", description=DESCRIPTION, lifespan=lifespan,
                   docs_url="/docs", openapi_url="/openapi.json")
     install_error_handlers(app)
+
+    @app.middleware("http")
+    async def require_gateway(request: Request, call_next):
+        """Enforce "all REST traffic goes through the API Gateway" at the application level."""
+        secret = settings.gateway_secret
+        if secret and request.url.path != "/health":
+            sent = request.headers.get("x-gateway-secret", "")
+            if not hmac.compare_digest(sent.encode(), secret.encode()):
+                return JSONResponse(status_code=403, content={"error": {
+                    "code": "GATEWAY_REQUIRED",
+                    "message": "Direct access is not allowed; call the API through the API Gateway"}})
+        return await call_next(request)
+
     for r in routers:
         app.include_router(r)
 

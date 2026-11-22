@@ -7,7 +7,7 @@ A conversational assistant for students asking about tuition deadlines, installm
 3. A **Tuition REST API** with a **PostgreSQL** database. All six operations are implemented, protected with JWT, and documented in Swagger.
 4. A **Kong API Gateway** that every REST request goes through. This includes the agent's own calls.
 
-> **Student:** _<your name / student number>_ · **Demo video:** _<link>_ · **Gateway URL:** _<https://api-gateway....azurecontainerapps.io>_ · **Chat UI:** _<https://tuition-agent....azurecontainerapps.io>_
+> **Student:** _<your name / student number>_ · **Demo video:** _<link>_ · **Gateway URL:** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io · **Chat UI:** https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io
 
 ### Requirements checklist (where to find each item)
 
@@ -19,12 +19,12 @@ A conversational assistant for students asking about tuition deadlines, installm
 | Real MCP SDK server, `search_tuition_policies(query)`, chunking + index | [§6](#6-mcp-server-and-indexing), `mcp_server/`, `docs/mcp-tool-schema.json` |
 | 3 distinct MCP retrieval queries | [§6](#6-mcp-server-and-indexing), `docs/screenshots/mcp-retrieval-tests.txt` |
 | REST APIs (6 operations), versioned, business rules | [§3](#3-rest-api), `tuition_api/` |
-| Swagger UI / OpenAPI | `<gateway>/docs`, [`docs/openapi.json`](docs/openapi.json), `docs/screenshots/swagger.png` |
+| Swagger UI / OpenAPI | [Azure gateway /docs](https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs), [`docs/openapi.json`](docs/openapi.json), `docs/screenshots/swagger.png`, `cloud-swagger.png` |
 | API Gateway: routes, protected route, error response, per-student rate limit | [§4](#4-api-gateway-kong), `gateway/kong.yml.template`, `docs/screenshots/gateway-smoke-test.txt` |
 | JWT auth, no access to other students' data | [§5](#5-authentication-and-authorization) |
 | Server database + ER model | PostgreSQL, [`docs/er-diagram.md`](docs/er-diagram.md), [`docs/er-diagram.png`](docs/er-diagram.png) |
 | Unit tests (success + failure per operation, no cloud/LLM) + evidence | [§8](#8-unit-tests), `docs/screenshots/tests.png` |
-| Cloud deployment (Azure) + URLs | [§9](#9-cloud-deployment-azure) |
+| Cloud deployment (Azure) + URLs | [§9](#9-cloud-deployment-azure), `docs/screenshots/cloud-*` |
 | LLM cost / low-cost testing | [§10](#10-llm-cost-and-low-cost-testing) |
 | Assumptions | [§11](#11-assumptions) |
 | Test data + steps to reproduce | [§2](#2-run-locally-docker), `samples/tuition_batch.csv` |
@@ -83,7 +83,7 @@ docker compose up --build
 | MCP server | http://localhost:8001/mcp |
 | Chat UI | http://localhost:8080 |
 
-The Tuition API container has **no published port**, so it can be reached **only through the gateway**.
+The Tuition API container has **no published port**, so it can be reached **only through the gateway**. In addition, the API rejects every request that does not carry the gateway's shared secret (see §4, "Gateway-only enforcement").
 
 ### Demo accounts and test data (seeded automatically)
 
@@ -157,7 +157,7 @@ Swagger UI: `<gateway>/docs`. The OpenAPI file is at [`docs/openapi.json`](docs/
 
 ## 4. API Gateway (Kong)
 
-- **Gateway URL:** `https://<api-gateway fqdn>` (Azure). Locally it is `http://localhost:8000`.
+- **Gateway URL (Azure):** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io (Swagger: https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs). Locally it is `http://localhost:8000`.
 - **Configuration:** [`gateway/kong.yml.template`](gateway/kong.yml.template). This is Kong 3.9 in DB-less mode, and the same file is used locally and in Azure.
 
 | Public route | Upstream | Gateway policy |
@@ -171,6 +171,12 @@ Swagger UI: `<gateway>/docs`. The OpenAPI file is at [`docs/openapi.json`](docs/
 **Per-student rate limit (not per IP).** A `pre-function` plugin copies `{studentNo}` from the path into an `X-Student-No` header, overwriting any value the client sent. The `rate-limiting` plugin then counts by that header.
 
 The API keeps a second, persistent counter in the `api_usage` table, keyed by student number and the Europe/Istanbul date. This way the rule holds even if the gateway restarts.
+
+**Gateway-only enforcement (the API cannot be called around the gateway).** Kong's `request-transformer` plugin removes any client-supplied `X-Gateway-Secret` header and adds the real shared secret to every request it proxies. The Tuition API rejects every request without the correct value (constant-time comparison) with:
+```
+403 {"error": {"code": "GATEWAY_REQUIRED", "message": "Direct access is not allowed; call the API through the API Gateway"}}
+```
+Only `/health` (platform health probe) is exempt. The secret is stored as an Azure Container Apps secret for both apps. This works the same locally and in the cloud and is covered by unit tests.
 
 **Example error response from the gateway** (protected route without a token):
 
@@ -307,7 +313,7 @@ Evidence of a successful run (API tests on PostgreSQL): [`docs/screenshots/tests
 
 | Component | Azure service |
 |---|---|
-| Tuition REST API | Azure Container Apps (**internal** ingress, not reachable from the internet) |
+| Tuition REST API | Azure Container Apps. Accepts only requests that carry the gateway secret; direct calls get **403 GATEWAY_REQUIRED** |
 | API Gateway | Kong on Azure Container Apps (external) |
 | MCP server | Azure Container Apps (external, `/mcp`) |
 | AI Agent and chat UI | Azure Container Apps (external) |
@@ -322,8 +328,23 @@ LOCATION=swedencentral bash deploy/azure/deploy.sh
 ```
 **Azure for Students note.** ACR Tasks (`az acr build`) are blocked on student/free-credit subscriptions (`TasksOperationsNotAllowed`). The script detects this, stops after creating the registry, database and environment, and prints the exact `docker login / tag / push` commands. Run them on your own computer (images built with Docker Desktop), then run the same deploy command again; it re-uses everything and creates the four container apps.
 
-Deployed URLs: _<fill in after deployment>_
-- Gateway: `https://...` · Swagger: `https://.../docs` · MCP: `https://.../mcp` · Chat: `https://...`
+Deployed URLs (Azure, region Sweden Central):
+
+| Component | URL |
+|---|---|
+| API Gateway (all REST, `/api/v1/...`) | https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
+| Swagger UI (through the gateway) | https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs |
+| MCP server (Streamable HTTP) | https://mcp-server.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/mcp |
+| Chat UI (AI agent) | https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
+| Tuition API (direct calls rejected: 403 `GATEWAY_REQUIRED`) | https://tuition-api.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
+
+Demo login for the chat: `20230005` / `Student123!` (see §2 for all demo accounts).
+
+**Cloud evidence**
+- Gateway, through Kong in Azure: [`docs/screenshots/cloud-gateway-smoke-test.txt`](docs/screenshots/cloud-gateway-smoke-test.txt). Shows the direct call to the API rejected with 403 `GATEWAY_REQUIRED`, 401 without a token, 200 with a token, 403 for another student, 200/200/200/**429** mobile limit, 201 then 409 duplicate transaction, and the admin operations.
+- MCP retrieval against the cloud MCP server: [`docs/screenshots/cloud-mcp-retrieval-tests.txt`](docs/screenshots/cloud-mcp-retrieval-tests.txt).
+- Swagger UI served through the Azure gateway: [`cloud-swagger.png`](docs/screenshots/cloud-swagger.png).
+- Chat on Azure (address bar visible): [`cloud-chat-combined.png`](docs/screenshots/cloud-chat-combined.png) (REST via the Azure gateway + MCP), [`cloud-payment-confirm.png`](docs/screenshots/cloud-payment-confirm.png), [`cloud-payment-success.png`](docs/screenshots/cloud-payment-success.png).
 
 Cost: everything fits in the Azure for Students credit (PostgreSQL B1ms plus 4 small container apps plus ACR Basic). Delete the resources afterwards with `az group delete -n rg-tuition-assistant`.
 
@@ -377,6 +398,7 @@ Cost: everything fits in the Azure for Students credit (PostgreSQL B1ms plus 4 s
 - The agent keeps chat sessions in memory, so each container app runs one replica (`max-replicas 1`).
 - Kong's rate-limit counter is `policy: local`, which matches one replica. The persistent counter in the API covers restarts.
 - The MCP server is publicly reachable without auth because it serves only public policy text.
+- **API network exposure:** the first deployment used *internal-only* ingress for the Tuition API, but in this Azure Container Apps environment the other apps could not reach internal apps (Kong got 404 for the internal FQDN and a DNS error for the short app name). The API therefore has normal ingress and enforces "gateway only" at the application level with the gateway's shared secret (direct calls: 403 `GATEWAY_REQUIRED`, evidence in `docs/screenshots/cloud-gateway-smoke-test.txt`). JWT and roles are still checked again by the API.
 
 ---
 
@@ -393,4 +415,4 @@ Cost: everything fits in the Azure for Students credit (PostgreSQL B1ms plus 4 s
 | Gateway: protected route, error response, 429, payment, admin | `docs/screenshots/gateway-smoke-test.txt` |
 | Swagger UI through the gateway | `docs/screenshots/swagger.png` |
 | Unit tests run (API tests on PostgreSQL) | `docs/screenshots/tests.png`, full output `docs/screenshots/tests-output.txt` |
-| Cloud deployment | `docs/screenshots/cloud-*.png` / `cloud-*.txt` (after deployment) |
+| Cloud deployment (Azure) | `docs/screenshots/cloud-gateway-smoke-test.txt`, `cloud-mcp-retrieval-tests.txt`, `cloud-chat-combined.png`, `cloud-payment-confirm.png`, `cloud-payment-success.png`, `cloud-swagger.png` |

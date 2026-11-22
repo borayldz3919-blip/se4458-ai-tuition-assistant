@@ -1,6 +1,6 @@
 """End-to-end check THROUGH THE API GATEWAY (cross-platform, needs only `httpx`).
 
-    python scripts/smoke_test.py http://localhost:8000
+    python scripts/smoke_test.py http://localhost:8000 [DIRECT_API_URL]
 or, with nothing installed locally (uses the agent image):
     docker compose run --rm -v ./scripts:/scripts -v ./samples:/samples agent python /scripts/smoke_test.py http://gateway:8000
 
@@ -16,6 +16,7 @@ from pathlib import Path
 import httpx
 
 GW = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000").rstrip("/")
+DIRECT_API = sys.argv[2].rstrip("/") if len(sys.argv) > 2 else None  # optional: prove the gateway can't be bypassed
 STUDENT = "20230002"
 c = httpx.Client(base_url=GW, timeout=20)
 CSV = next((p for p in [Path(__file__).resolve().parents[1] / "samples" / "tuition_batch.csv",
@@ -38,6 +39,10 @@ def login(user, pw):
 tok = login(STUDENT, "Student123!")
 H = {"Authorization": f"Bearer {tok}"}
 print(f"Gateway: {GW}\nLogged in as {STUDENT} (POST /api/v1/auth/login, public route)")
+
+if DIRECT_API:
+    show("Direct call to the Tuition API, bypassing the gateway (expect 403 GATEWAY_REQUIRED)",
+         httpx.get(f"{DIRECT_API}/api/v1/mobile/tuition/{STUDENT}", timeout=20))
 
 show("Protected route WITHOUT token (expect 401 from gateway)", c.get(f"/api/v1/banking/tuition/{STUDENT}"))
 show("Protected route WITH token (expect 200)", c.get(f"/api/v1/banking/tuition/{STUDENT}", headers=H))

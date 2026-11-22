@@ -20,6 +20,10 @@ class Settings:
         self.timezone = os.getenv("APP_TIMEZONE", "Europe/Istanbul")
         self.init_db = _bool("INIT_DB", "true")
         self.seed_demo_data = _bool("SEED_DEMO_DATA", "true")
+        # Shared secret that ONLY the API gateway adds to proxied requests (header X-Gateway-Secret).
+        # When set, every request without it is rejected, so the API cannot be called around the gateway.
+        # Empty = check disabled (unit tests, local runs without the gateway).
+        self.gateway_secret = os.getenv("GATEWAY_SHARED_SECRET", "")
 
 
 settings = Settings()
