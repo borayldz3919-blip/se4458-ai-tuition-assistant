@@ -7,7 +7,7 @@ A conversational assistant for students asking about tuition deadlines, installm
 3. A **Tuition REST API** with a **PostgreSQL** database. All six operations are implemented, protected with JWT, and documented in Swagger.
 4. A **Kong API Gateway** that every REST request goes through. This includes the agent's own calls.
 
-> **Student:** _<your name / student number>_ · **Demo video:** _<link>_ · **Gateway URL:** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io · **Chat UI:** https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io
+> **Student:** Bora Yıldız (23070001092) · **Demo video:** _<link>_ · **Gateway URL:** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io · **Chat UI:** https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io
 
 ### Requirements checklist (where to find each item)
 
@@ -54,7 +54,7 @@ The LLM never calls a backend directly. It can only *request* tools, and the age
 
 | Folder | What it is |
 |---|---|
-| `tuition_api/` | REST API (FastAPI, SQLAlchemy, PostgreSQL), JWT auth, business logic, 34 unit tests |
+| `tuition_api/` | REST API (FastAPI, SQLAlchemy, PostgreSQL), JWT auth, business logic, 37 unit tests |
 | `mcp_server/` | MCP server, chunking and BM25 indexer, the policy document, 13 tests |
 | `agent/` | AI agent (LLM tool calling, MCP client, gateway client), web chat and CLI, 24 tests |
 | `gateway/` | Kong DB-less declarative config (`kong.yml.template`) and config tests |
@@ -290,7 +290,7 @@ All tests run automatically **without the cloud, the gateway or a live LLM**:
 - The Docker test runner runs the API tests on **PostgreSQL** (a separate `tuition_test` database that is created automatically; the demo data is not touched). Without `TEST_DATABASE_URL`, for a quick run on a laptop, they fall back to in-memory SQLite. The production database is always PostgreSQL.
 - The agent tests use a scripted LLM, the real API in-process, and the real MCP server over an in-memory MCP transport.
 
-Run all suites (76 tests) with nothing installed except Docker:
+Run all suites (80 tests) with nothing installed except Docker:
 ```bash
 docker compose --profile test run --rm tests
 ```
@@ -298,10 +298,10 @@ or with Python 3.12 installed: `sh scripts/run_tests.sh`. Per component:
 
 | Suite | Tests | What is covered |
 |---|---|---|
-| `tuition_api` | 34 | every REST operation: success + failure/edge cases |
+| `tuition_api` | 37 | every REST operation: success + failure/edge cases, gateway-only enforcement |
 | `mcp_server` | 13 | chunking, retrieval queries, MCP protocol round-trip |
 | `agent` | 24 | 3 scenarios, identity, payment confirmation gate, term choice, LLM fallback |
-| `gateway` | 5 | versioned routes, JWT on protected routes, rate-limit key |
+| `gateway` | 6 | versioned routes, JWT on protected routes, rate-limit key, gateway secret header |
 
 Coverage per operation (at least one success and one failure each): login; mobile query (success, term filter, 429 on the 4th call, 404, 422); banking query (401, own record, 403 for another student, bank access, expired or forged token); pay (partial, full, duplicate transaction ID, amount over the balance, already paid, other student, 0 or negative amount, unknown term, 401); add tuition (create, update, below paid amount, currency mismatch, 403, 422); batch (mixed file with counts, bad header, 403); unpaid (paging, page past the end, invalid pageSize, 403).
 
