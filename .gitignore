@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+agent/logs/
+deploy/azure/outputs.env
+/gateway-smoke-test.txt
+.vscode/
+.vscode/

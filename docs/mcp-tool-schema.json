@@ -1,0 +1,22 @@
+{
+  "name": "search_tuition_policies",
+  "description": "Search the University Tuition Policies (deadlines, installments, late fees, scholarships, refunds,\npayment/banking instructions). Returns the most relevant passages with section ID, heading,\ndocument ID and text (e.g. section \"3.2\", heading \"Number and size of installments\"). Does NOT contain any student's balance.\n\nArgs:\n    query: Natural-language search text, e.g. \"installment eligibility\".\n    top_k: Number of excerpts to return (1-5, default 3).\n",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "title": "Query",
+        "type": "string"
+      },
+      "top_k": {
+        "default": 3,
+        "title": "Top K",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "title": "search_tuition_policiesArguments"
+  }
+}

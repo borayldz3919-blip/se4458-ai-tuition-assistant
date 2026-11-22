@@ -1,0 +1,127 @@
+﻿API tests will use PostgreSQL: postgresql+psycopg://tuition:tuition@***
+
+================================================== tuition_api
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /repo/tuition_api
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.16.0
+collecting ... collected 34 items
+
+tests/test_api.py::TestLogin::test_login_success_returns_jwt_with_role_and_student_no PASSED [  2%]
+tests/test_api.py::TestLogin::test_login_wrong_password_401 PASSED       [  5%]
+tests/test_api.py::TestMobileQueryTuition::test_overall_balance_and_term_breakdown PASSED [  8%]
+tests/test_api.py::TestMobileQueryTuition::test_term_filter PASSED       [ 11%]
+tests/test_api.py::TestMobileQueryTuition::test_fourth_call_same_student_is_rate_limited PASSED [ 14%]
+tests/test_api.py::TestMobileQueryTuition::test_unknown_student_404 PASSED [ 17%]
+tests/test_api.py::TestMobileQueryTuition::test_invalid_student_no_format_422 PASSED [ 20%]
+tests/test_api.py::TestBankingQueryTuition::test_requires_token PASSED   [ 23%]
+tests/test_api.py::TestBankingQueryTuition::test_student_reads_own_record PASSED [ 26%]
+tests/test_api.py::TestBankingQueryTuition::test_student_cannot_read_other_student PASSED [ 29%]
+tests/test_api.py::TestBankingQueryTuition::test_bank_can_read_any_student_and_is_not_rate_limited PASSED [ 32%]
+tests/test_api.py::TestBankingQueryTuition::test_expired_token_rejected PASSED [ 35%]
+tests/test_api.py::TestBankingQueryTuition::test_forged_token_rejected PASSED [ 38%]
+tests/test_api.py::TestPayTuition::test_partial_then_full_payment PASSED [ 41%]
+tests/test_api.py::TestPayTuition::test_duplicate_transaction_id_rejected_and_balance_unchanged PASSED [ 44%]
+tests/test_api.py::TestPayTuition::test_amount_exceeding_balance_rejected PASSED [ 47%]
+tests/test_api.py::TestPayTuition::test_already_paid_term_rejected PASSED [ 50%]
+tests/test_api.py::TestPayTuition::test_student_cannot_pay_for_someone_else PASSED [ 52%]
+tests/test_api.py::TestPayTuition::test_zero_or_negative_amount_validation_error PASSED [ 55%]
+tests/test_api.py::TestPayTuition::test_unknown_term_404 PASSED          [ 58%]
+tests/test_api.py::TestPayTuition::test_requires_auth PASSED             [ 61%]
+tests/test_api.py::TestAddTuition::test_create_new_student_term PASSED   [ 64%]
+tests/test_api.py::TestAddTuition::test_same_student_term_updates_amount PASSED [ 67%]
+tests/test_api.py::TestAddTuition::test_amount_below_paid_rejected PASSED [ 70%]
+tests/test_api.py::TestAddTuition::test_currency_mismatch_rejected PASSED [ 73%]
+tests/test_api.py::TestAddTuition::test_non_admin_forbidden PASSED       [ 76%]
+tests/test_api.py::TestAddTuition::test_bad_term_format_422 PASSED       [ 79%]
+tests/test_api.py::TestBatch::test_mixed_file_reports_counts_and_keeps_good_rows PASSED [ 82%]
+tests/test_api.py::TestBatch::test_wrong_header_400 PASSED               [ 85%]
+tests/test_api.py::TestBatch::test_requires_admin PASSED                 [ 88%]
+tests/test_api.py::TestUnpaid::test_paging PASSED                        [ 91%]
+tests/test_api.py::TestUnpaid::test_page_beyond_end_is_empty PASSED      [ 94%]
+tests/test_api.py::TestUnpaid::test_invalid_page_size_422 PASSED         [ 97%]
+tests/test_api.py::TestUnpaid::test_requires_admin PASSED                [100%]
+
+============================== 34 passed in 3.60s ==============================
+
+================================================== mcp_server
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /repo/mcp_server
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.16.0
+collecting ... collected 13 items
+
+tests/test_mcp.py::test_document_is_split_into_numbered_sections PASSED  [  7%]
+tests/test_mcp.py::test_chunker_handles_section_without_subsections PASSED [ 15%]
+tests/test_mcp.py::test_tokenizer_normalises_synonyms_and_plurals PASSED [ 23%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[Fall tuition deadline-8.1] PASSED [ 30%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[installment eligibility-3.1] PASSED [ 38%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[late fee-4.1] PASSED [ 46%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[early withdrawal refund-6.1] PASSED [ 53%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[duplicate payment submissions-7.4] PASSED [ 61%]
+tests/test_mcp.py::test_retrieval_returns_expected_section_first[Spring deadline-2.2] PASSED [ 69%]
+tests/test_mcp.py::test_unrelated_query_returns_nothing PASSED           [ 76%]
+tests/test_mcp.py::test_tool_function_formats_results_and_clamps_top_k PASSED [ 84%]
+tests/test_mcp.py::test_empty_query PASSED                               [ 92%]
+tests/test_mcp.py::test_mcp_protocol_roundtrip_in_memory PASSED          [100%]
+
+============================== 13 passed in 0.59s ==============================
+
+================================================== agent
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /repo/agent
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.16.0
+collecting ... collected 24 items
+
+tests/test_agent.py::test_mcp_only_question PASSED                       [  4%]
+tests/test_agent.py::test_rest_only_question PASSED                      [  8%]
+tests/test_agent.py::test_combined_question_calls_both PASSED            [ 12%]
+tests/test_agent.py::test_agent_ignores_student_number_from_prompt PASSED [ 16%]
+tests/test_agent.py::test_api_itself_blocks_other_students_even_with_a_valid_student_token PASSED [ 20%]
+tests/test_agent.py::test_payment_needs_explicit_confirmation PASSED     [ 25%]
+tests/test_agent.py::test_payment_cancelled_without_confirmation PASSED  [ 29%]
+tests/test_agent.py::test_invalid_payment_arguments_are_rejected PASSED  [ 33%]
+tests/test_agent.py::test_amount_above_balance_rejected_before_confirmation PASSED [ 37%]
+tests/test_agent.py::test_api_error_at_execution_is_passed_to_llm_not_raised PASSED [ 41%]
+tests/test_agent.py::test_multi_term_debt_requires_student_to_choose_term PASSED [ 45%]
+tests/test_agent.py::test_term_mentioned[2026-FALL-2026-FALL-True] PASSED [ 50%]
+tests/test_agent.py::test_term_mentioned[2026-FALL-pay the fall term-True] PASSED [ 54%]
+tests/test_agent.py::test_term_mentioned[2026-FALL-g\xfcz d\xf6nemi-True] PASSED [ 58%]
+tests/test_agent.py::test_term_mentioned[2026-SPRING-pay 1000-False] PASSED [ 62%]
+tests/test_agent.py::test_term_mentioned[2026-FALL-pay 1000 of my balance-False] PASSED [ 66%]
+tests/test_agent.py::test_confirmation_words[yes-True] PASSED            [ 70%]
+tests/test_agent.py::test_confirmation_words[Evet-True] PASSED           [ 75%]
+tests/test_agent.py::test_confirmation_words[onayl\u0131yorum-True] PASSED [ 79%]
+tests/test_agent.py::test_confirmation_words[confirm.-True] PASSED       [ 83%]
+tests/test_agent.py::test_confirmation_words[no-False] PASSED            [ 87%]
+tests/test_agent.py::test_confirmation_words[yes but pay 2000 instead-False] PASSED [ 91%]
+tests/test_agent.py::test_confirmation_words[-False] PASSED              [ 95%]
+tests/test_agent.py::test_llm_falls_back_to_next_model_when_overloaded PASSED [100%]
+
+============================== 24 passed in 2.12s ==============================
+
+================================================== gateway
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /repo/gateway
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.16.0
+collecting ... collected 5 items
+
+tests/test_gateway_config.py::test_all_public_routes_are_versioned PASSED [ 20%]
+tests/test_gateway_config.py::test_protected_routes_require_jwt PASSED   [ 40%]
+tests/test_gateway_config.py::test_public_routes_have_no_jwt PASSED      [ 60%]
+tests/test_gateway_config.py::test_mobile_rate_limit_is_keyed_by_student_number_not_ip PASSED [ 80%]
+tests/test_gateway_config.py::test_jwt_consumer_matches_api_issuer PASSED [100%]
+
+============================== 5 passed in 0.08s ===============================
+
+ALL TEST SUITES PASSED

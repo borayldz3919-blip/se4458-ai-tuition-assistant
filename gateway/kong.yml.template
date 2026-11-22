@@ -1,0 +1,92 @@
+# Kong API Gateway - DB-less declarative configuration.
+# ${...} placeholders are filled from environment variables by entrypoint.sh at container start.
+#
+# Public, versioned routes (all REST traffic, including the AI agent's, goes through here):
+#   POST /api/v1/auth/login              public           -> tuition-api
+#   GET  /api/v1/mobile/tuition/{no}     public, 3/day/student (keyed by student number, not IP)
+#   GET  /api/v1/banking/tuition/{no}    JWT required
+#   POST /api/v1/banking/payments        JWT required
+#   POST /api/v1/admin/tuition[/batch]   JWT required (+ admin role checked by the API)
+#   GET  /api/v1/admin/tuition/unpaid    JWT required (+ admin role checked by the API)
+#   GET  /docs, /openapi.json            public Swagger UI
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: tuition-api-v1
+    url: ${API_UPSTREAM}
+    connect_timeout: 10000
+    read_timeout: 30000
+    routes:
+      - name: auth-v1
+        paths: ["/api/v1/auth"]
+        methods: ["POST"]
+        strip_path: false
+
+      - name: mobile-tuition-v1
+        paths: ["/api/v1/mobile/tuition"]
+        methods: ["GET"]
+        strip_path: false
+        plugins:
+          # Derive the rate-limit key from the student number in the path (identity, not client IP).
+          # Any client-supplied X-Student-No header is overwritten, so it cannot be spoofed.
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local path = kong.request.get_path()
+                  local student_no = string.match(path, "^/api/v1/mobile/tuition/([^/]+)") or "missing"
+                  kong.service.request.set_header("X-Student-No", student_no)
+          - name: rate-limiting
+            config:
+              day: ${MOBILE_DAILY_LIMIT}
+              limit_by: header
+              header_name: X-Student-No
+              policy: local
+              fault_tolerant: true
+              hide_client_headers: false
+              error_code: 429
+              error_message: "Query Tuition is limited to ${MOBILE_DAILY_LIMIT} calls per student per day"
+
+      - name: banking-v1
+        paths: ["/api/v1/banking"]
+        methods: ["GET", "POST"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: ["exp"]
+              header_names: ["authorization"]
+
+      - name: admin-v1
+        paths: ["/api/v1/admin"]
+        methods: ["GET", "POST"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: ["exp"]
+              header_names: ["authorization"]
+
+      - name: swagger-docs
+        paths: ["/docs", "/openapi.json"]
+        methods: ["GET"]
+        strip_path: false
+
+# The Tuition API issues HS256 tokens with iss=${JWT_ISSUER}; Kong verifies them with the same secret.
+consumers:
+  - username: tuition-auth-service
+    jwt_secrets:
+      - key: ${JWT_ISSUER}
+        secret: ${JWT_SECRET}
+        algorithm: HS256
+
+plugins:
+  # Adds X-Request-ID to every request/response for tracing across gateway and API logs
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true

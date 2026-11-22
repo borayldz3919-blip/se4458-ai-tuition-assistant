@@ -1,0 +1,200 @@
+Gateway: http://gateway:8000
+Logged in as 20230002 (POST /api/v1/auth/login, public route)
+
+==== Protected route WITHOUT token (expect 401 from gateway)
+GET http://gateway:8000/api/v1/banking/tuition/20230002
+-> HTTP 401
+{
+  "message": "Unauthorized"
+}
+
+==== Protected route WITH token (expect 200)
+GET http://gateway:8000/api/v1/banking/tuition/20230002
+-> HTTP 200
+{
+  "studentNo": "20230002",
+  "fullName": "Mehmet Demir",
+  "currency": "USD",
+  "tuitionTotal": 3000.0,
+  "balance": 2000.0,
+  "scope": "OVERALL",
+  "terms": [
+    {
+      "term": "2026-FALL",
+      "tuitionTotal": 3000.0,
+      "paidAmount": 1000.0,
+      "balance": 2000.0,
+      "status": "PARTIALLY_PAID"
+    }
+  ]
+}
+
+==== Another student's record with this token (expect 403)
+GET http://gateway:8000/api/v1/banking/tuition/20230001
+-> HTTP 403
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Students can only access their own tuition records"
+  }
+}
+
+==== Mobile Query Tuition, no auth, 4 calls for student 20230024 (expect 200,200,200,429)
+call 1: HTTP 200  X-RateLimit-Remaining-Day=2  body=ok
+call 2: HTTP 200  X-RateLimit-Remaining-Day=1  body=ok
+call 3: HTTP 200  X-RateLimit-Remaining-Day=0  body=ok
+call 4: HTTP 429  X-RateLimit-Remaining-Day=0  body={
+  "message":"Query Tuition is limited to 3 calls per student per day",
+  "request_id":"16ab5e67639e9b68814bf0749351d51
+
+==== Simulated partial payment (expect 201)
+POST http://gateway:8000/api/v1/banking/payments
+-> HTTP 201
+{
+  "status": "SUCCESS",
+  "transactionId": "SMOKE-1795355084",
+  "studentNo": "20230002",
+  "term": "2026-FALL",
+  "paidAmount": 100.0,
+  "remainingBalance": 1900.0,
+  "currency": "USD"
+}
+
+==== Same transaction id again (expect 409 DUPLICATE_TRANSACTION)
+POST http://gateway:8000/api/v1/banking/payments
+-> HTTP 409
+{
+  "error": {
+    "code": "DUPLICATE_TRANSACTION",
+    "message": "Transaction SMOKE-1795355084 was already processed"
+  }
+}
+
+==== Admin route with a student token (expect 403)
+GET http://gateway:8000/api/v1/admin/tuition/unpaid?term=2026-FALL
+-> HTTP 403
+{
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Role 'student' cannot perform this operation"
+  }
+}
+
+==== Add Tuition (admin)
+POST http://gateway:8000/api/v1/admin/tuition
+-> HTTP 201
+{
+  "status": "CREATED",
+  "studentNo": "20249999",
+  "term": "2026-FALL",
+  "tuitionTotal": 3000.0,
+  "balance": 3000.0,
+  "currency": "USD"
+}
+
+==== Unpaid Tuition Status page 1, size 5 (admin)
+GET http://gateway:8000/api/v1/admin/tuition/unpaid?term=2026-FALL&page=1&pageSize=5
+-> HTTP 200
+{
+  "term": "2026-FALL",
+  "page": 1,
+  "pageSize": 5,
+  "totalItems": 25,
+  "totalPages": 5,
+  "items": [
+    {
+      "studentNo": "20230001",
+      "fullName": "Ayse Yilmaz",
+      "tuitionTotal": 3000.0,
+      "paidAmount": 0.0,
+      "balance": 3000.0,
+      "currency": "USD"
+    },
+    {
+      "studentNo": "20230002",
+      "fullName": "Mehmet Demir",
+      "tuitionTotal": 3000.0,
+      "paidAmount": 1100.0,
+      "balance": 1900.0,
+      "currency": "USD"
+    },
+    {
+      "studentNo": "20230004",
+      "fullName": "Can Ozturk",
+      "tuitionTotal": 2250.0,
+      "paidAmount": 0.0,
+      "balance": 2250.0,
+      "currency": "USD"
+    },
+    {
+      "studentNo": "20230005",
+      "fullName": "Elif Sahin",
+      "tuitionTotal": 3000.0,
+      "paidAmount": 1000.0,
+      "balance": 2000.0,
+      "currency": "USD"
+    },
+    {
+      "studentNo": "20230006",
+      "fullName": "Demo Student 6",
+      "tuitionTotal": 3000.0,
+      "paidAmount": 0.0,
+      "balance": 3000.0,
+      "currency": "USD"
+    }
+  ]
+}
+
+==== Add Tuition - Batch CSV (admin)
+POST http://gateway:8000/api/v1/admin/tuition/batch
+-> HTTP 200
+{
+  "status": "COMPLETED_WITH_ERRORS",
+  "totalRows": 6,
+  "successCount": 3,
+  "failureCount": 3,
+  "results": [
+    {
+      "line": 2,
+      "studentNo": "20240001",
+      "term": "2026-FALL",
+      "status": "CREATED",
+      "error": null
+    },
+    {
+      "line": 3,
+      "studentNo": "20240002",
+      "term": "2026-FALL",
+      "status": "CREATED",
+      "error": null
+    },
+    {
+      "line": 4,
+      "studentNo": "20230002",
+      "term": "2026-FALL",
+      "status": "UPDATED",
+      "error": null
+    },
+    {
+      "line": 5,
+      "studentNo": "20240003",
+      "term": "FALL-2026",
+      "status": "FAILED",
+      "error": "INVALID_TERM: term must look like 2026-FALL"
+    },
+    {
+      "line": 6,
+      "studentNo": "20240004",
+      "term": "2026-FALL",
+      "status": "FAILED",
+      "error": "INVALID_AMOUNT: amount is not a number"
+    },
+    {
+      "line": 7,
+      "studentNo": "20230001",
+      "term": "2027-SPRING",
+      "status": "FAILED",
+      "error": "CURRENCY_MISMATCH: Student 20230001 is billed in USD, not TRY"
+    }
+  ]
+}

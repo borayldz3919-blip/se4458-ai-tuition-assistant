@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>University Tuition Assistant</title>
+<style>
+  :root { --blue:#1a56a6; --bg:#f2f5f9; --line:#dde4ee; --ok:#e7f6f1; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:#1d2633; }
+  .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+  header { background:var(--blue); color:#fff; padding:16px 22px; border-radius:14px 14px 0 0; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:20px; margin:0; }
+  .card { background:#fff; border:1px solid var(--line); border-top:0; border-radius:0 0 14px 14px; padding:18px 22px; }
+  #login input { padding:9px; margin-right:6px; border:1px solid var(--line); border-radius:8px; }
+  button { background:var(--blue); color:#fff; border:0; padding:9px 16px; border-radius:8px; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  .hint { color:#6b7787; font-size:13px; margin-top:8px; }
+  .msg { margin:14px 0; }
+  .label { font-size:12px; font-weight:700; letter-spacing:.04em; color:#6b7787; text-transform:uppercase; margin-bottom:6px; }
+  .bubble { padding:12px 16px; border-radius:12px; white-space:pre-wrap; line-height:1.45; }
+  .user .bubble { background:#e6edf9; }
+  .bot .bubble { background:var(--ok); }
+  .trace { margin:8px 0 0; border-collapse:separate; border-spacing:0 6px; width:100%; font-size:13px; }
+  .trace td { background:#f5f8fc; border:1px solid var(--line); padding:7px 10px; vertical-align:top; }
+  .trace td:first-child { font-weight:700; color:var(--blue); width:150px; border-radius:8px 0 0 8px; }
+  .trace td:last-child { border-radius:0 8px 8px 0; }
+  code { font-size:12px; word-break:break-all; }
+  #composer { display:flex; gap:8px; margin-top:12px; }
+  #composer input { flex:1; padding:11px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .examples button { background:#fff; color:var(--blue); border:1px solid var(--blue); margin:4px 4px 0 0; padding:5px 10px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>University Tuition Assistant</h1><span id="who"></span></header>
+  <div class="card">
+    <div id="login">
+      <input id="u" placeholder="Student number" value="20230001">
+      <input id="p" type="password" placeholder="Password" value="Student123!">
+      <button onclick="login()">Log in</button>
+      <div class="hint">Demo students: 20230001 … 20230025, password Student123!</div>
+    </div>
+    <div id="chat" style="display:none">
+      <div class="examples">
+        <button onclick="ask(this.textContent)">When is the payment deadline?</button>
+        <button onclick="ask(this.textContent)">What is my balance?</button>
+        <button onclick="ask(this.textContent)">Can I pay my outstanding balance in installments?</button>
+        <button onclick="ask(this.textContent)">Pay 1000 of my balance</button>
+      </div>
+      <div id="log"></div>
+      <div id="composer">
+        <input id="q" placeholder="Ask about deadlines, installments, your balance, payments…" onkeydown="if(event.key==='Enter')send()">
+        <button id="send" onclick="send()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+let sid = null;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const LABEL = {llm:'LLM', mcp:'MCP', rest:'REST via Gateway', confirmation:'Confirmation', error:'Error'};
+
+async function login() {
+  const r = await fetch('/chat/login', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username: u.value, password: p.value})});
+  const b = await r.json();
+  if (!r.ok) { alert(b.detail || 'Login failed'); return; }
+  sid = b.session_id;
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('chat').style.display = 'block';
+  document.getElementById('who').textContent = `${b.full_name} · ${b.student_no}`;
+}
+function ask(t) { q.value = t; send(); }
+function add(html) { const d = document.createElement('div'); d.innerHTML = html; log.appendChild(d); d.scrollIntoView(); return d; }
+async function send() {
+  const text = q.value.trim(); if (!text) return;
+  q.value = ''; document.getElementById('send').disabled = true;
+  add(`<div class="msg user"><div class="label">Student</div><div class="bubble">${esc(text)}</div></div>`);
+  const wait = add(`<div class="hint">Thinking…</div>`);
+  try {
+    const r = await fetch('/chat/message', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({session_id: sid, message: text})});
+    const b = await r.json(); wait.remove();
+    if (!r.ok) { add(`<div class="msg bot"><div class="bubble">Error: ${esc(b.detail)}</div></div>`); return; }
+    const rows = b.trace.map(t => `<tr><td>${LABEL[t.type] || t.type}${t.type!=='llm' ? '<br><code>'+esc(t.tool)+'</code>' : ''}</td>
+      <td><code>${esc(typeof t.input === 'string' ? t.input : JSON.stringify(t.input))}</code><br>→ ${esc(typeof t.output === 'string' ? t.output : JSON.stringify(t.output))}</td></tr>`).join('');
+    add(`<div class="msg"><div class="label">Agent tool execution</div><table class="trace">${rows}</table></div>
+         <div class="msg bot"><div class="label">AI Assistant response</div><div class="bubble">${md(b.answer)}</div></div>`);
+  } finally { document.getElementById('send').disabled = false; q.focus(); }
+}
+</script>
+</body>
+</html>

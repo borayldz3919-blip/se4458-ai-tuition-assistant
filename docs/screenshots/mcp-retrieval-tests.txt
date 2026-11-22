@@ -1,0 +1,39 @@
+﻿MCP server: http://mcp:8001/mcp
+Tools exposed: ['search_tuition_policies']
+Input schema of search_tuition_policies: {"type": "object", "properties": {"query": {"title": "Query", "type": "string"}, "top_k": {"default": 3, "title": "Top K", "type": "integer"}}, "required": ["query"], "title": "search_tuition_policiesArguments"}
+
+==== Retrieval test 1: search_tuition_policies(query='When is the Fall tuition deadline?')
+document: University_Tuition_Policies.md (UNI-TUITION-2026-01)
+  [ 6.29] Section 8.1 - When is the Fall tuition deadline?
+          September 30, 2026. See Section 2.1.
+  [ 5.55] Section 2.1 - Fall term
+          The payment deadline for the Fall 2026 term is **September 30, 2026**. A student should settle the outstanding balance or have an approved installment arrangeme...
+  [ 3.72] Section 3.3 - Installment schedule
+          For Fall 2026, approved installment due dates are **September 30, October 31, and November 30, 2026**. For Spring 2027, approved installment due dates are **Feb...
+
+==== Retrieval test 2: search_tuition_policies(query='installment eligibility')
+document: University_Tuition_Policies.md (UNI-TUITION-2026-01)
+  [ 5.98] Section 3.1 - Eligibility
+          Students with an outstanding balance of at least **$300** may request an installment arrangement. An arrangement is subject to approval; this policy does not es...
+  [ 2.73] Section 5.1 - Merit scholarship
+          The standard merit scholarship may reduce assessed tuition by **25%** for eligible students. Eligibility is decided by the university and recorded separately.
+  [ 2.57] Section 3.2 - Number and size of installments
+          An approved balance may be divided into **up to three installments**. Installments should be equal where possible; any rounding difference is added to the final...
+
+==== Retrieval test 3: search_tuition_policies(query='late fee')
+document: University_Tuition_Policies.md (UNI-TUITION-2026-01)
+  [ 8.01] Section 4.1 - Late fee rule
+          A **2% one-time late fee** may be assessed on an overdue amount after the applicable due date, unless an approved exception applies. This document describes the...
+  [ 7.65] Section 4.2 - Example
+          If $1,000 is overdue and no exception applies, the illustrative late fee is $20. Whether a fee has actually been posted must be checked in the tuition system.
+  [ 6.74] Section 4.3 - Exceptions
+          Students with a documented university-approved deferral may be exempt. Approval status is not available from this document.
+
+==== Retrieval test 4: search_tuition_policies(query='refund after early withdrawal')
+document: University_Tuition_Policies.md (UNI-TUITION-2026-01)
+  [11.48] Section 6.1 - Early withdrawal
+          A student who formally withdraws within **14 calendar days of the term start** may be eligible for a refund of **80% of tuition payments associated with that te...
+  [ 9.52] Section 6.2 - Later withdrawal
+          After the 14-day period, refunds are reviewed individually and are not guaranteed. The AI assistant should direct students to the university finance office for ...
+  [ 7.29] Section 6.3 - Refund processing
+          Approved refunds are generally processed within **15 business days**. This document does not provide refund status for any individual student.

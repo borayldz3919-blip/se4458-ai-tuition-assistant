@@ -1,0 +1,5 @@
+-r requirements.txt
+-r ../tuition_api/requirements.txt
+-r ../mcp_server/requirements.txt
+pytest>=8
+pyyaml>=6
