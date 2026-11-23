@@ -7,7 +7,7 @@ A conversational assistant for students asking about tuition deadlines, installm
 3. A **Tuition REST API** with a **PostgreSQL** database. All six operations are implemented, protected with JWT, and documented in Swagger.
 4. A **Kong API Gateway** that every REST request goes through. This includes the agent's own calls.
 
-> **Student:** Bora Yıldız (23070001092) · **Demo video:** _<link>_ · **Gateway URL:** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io · **Chat UI:** https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io
+> **Student:** Bora Yıldız (23070001092) · **Demo video:** https://drive.google.com/file/d/1LL4kzzPMve8Hgo6JKUND9M0JB_aJrSGV/view?usp=sharing · **Chat UI:** [https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io](https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io) · **API Gateway (Swagger UI):** [https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs](https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs)
 
 ### Requirements checklist (where to find each item)
 
@@ -157,7 +157,7 @@ Swagger UI: `<gateway>/docs`. The OpenAPI file is at [`docs/openapi.json`](docs/
 
 ## 4. API Gateway (Kong)
 
-- **Gateway URL (Azure):** https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io (Swagger: https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs). Locally it is `http://localhost:8000`.
+- **Gateway URL (Azure):** `https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io` + the routes below, e.g. [`/api/v1/mobile/tuition/20230001`](https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/api/v1/mobile/tuition/20230001) (counts toward that student's 3/day limit). Swagger UI: [https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs](https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs). The bare root `/` has no route, so Kong answers 404 `no Route matched` there. Locally it is `http://localhost:8000`.
 - **Configuration:** [`gateway/kong.yml.template`](gateway/kong.yml.template). This is Kong 3.9 in DB-less mode, and the same file is used locally and in Azure.
 
 | Public route | Upstream | Gateway policy |
@@ -332,11 +332,11 @@ Deployed URLs (Azure, region Sweden Central):
 
 | Component | URL |
 |---|---|
-| API Gateway (all REST, `/api/v1/...`) | https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
+| API Gateway (all REST, `/api/v1/...`) | `https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io` (base URL; the root `/` has no route, use `/api/v1/...` or `/docs`) |
 | Swagger UI (through the gateway) | https://api-gateway.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/docs |
-| MCP server (Streamable HTTP) | https://mcp-server.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/mcp |
+| MCP server (Streamable HTTP) | `https://mcp-server.salmonmoss-766227b4.swedencentral.azurecontainerapps.io/mcp` (for MCP clients, a browser gets an error; see `scripts/mcp_retrieval_demo.py`) |
 | Chat UI (AI agent) | https://tuition-agent.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
-| Tuition API (direct calls rejected: 403 `GATEWAY_REQUIRED`) | https://tuition-api.salmonmoss-766227b4.swedencentral.azurecontainerapps.io |
+| Tuition API (direct calls rejected: 403 `GATEWAY_REQUIRED`, by design) | `https://tuition-api.salmonmoss-766227b4.swedencentral.azurecontainerapps.io` |
 
 Demo login for the chat: `20230005` / `Student123!` (see §2 for all demo accounts).
 
@@ -404,7 +404,7 @@ Cost: everything fits in the Azure for Students credit (PostgreSQL B1ms plus 4 s
 
 ## 12. Demo video and evidence
 
-- **Video:** _<link>_ (about 5 min). It shows the architecture, the three agent scenarios with traces, three MCP retrieval tests, a protected gateway route (401/200), the 429 rate limit, a confirmed simulated payment, and running the unit tests.
+- **Video:** https://drive.google.com/file/d/1LL4kzzPMve8Hgo6JKUND9M0JB_aJrSGV/view?usp=sharing (about 7.5 min). It shows the architecture, the three agent scenarios with traces, three MCP retrieval tests, a protected gateway route (401/200), the 429 rate limit, a confirmed simulated payment, and running the unit tests.
 
 | Evidence | File |
 |---|---|
